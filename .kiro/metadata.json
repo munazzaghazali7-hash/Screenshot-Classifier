@@ -1,0 +1,49 @@
+{
+  "project": {
+    "name": "Screenshot Classifier",
+    "description": "Automatically classify and organize screenshots into categories based on their content using OCR",
+    "version": "1.0.0",
+    "type": "python-script",
+    "created": "2025-12-05",
+    "author": "Kiro AI"
+  },
+  "dependencies": {
+    "python": ">=3.7",
+    "packages": [
+      "pytesseract==0.3.10",
+      "Pillow==10.1.0"
+    ],
+    "system": [
+      "tesseract-ocr"
+    ]
+  },
+  "structure": {
+    "main_script": "screenshot_classifier.py",
+    "input_folder": "Screenshots/",
+    "output_folders": [
+      "Screenshots/Chats/",
+      "Screenshots/Receipts/",
+      "Screenshots/Notes/",
+      "Screenshots/Memes/",
+      "Screenshots/Uncategorized/"
+    ]
+  },
+  "features": [
+    "OCR text extraction using pytesseract",
+    "Rule-based classification",
+    "Automatic folder creation",
+    "Duplicate file handling",
+    "Detailed logging"
+  ],
+  "classification_rules": {
+    "Chats": "Contains timestamps (AM/PM) or chat-related keywords",
+    "Receipts": "Contains monetary symbols (₹, Rs, INR, $, USD, EUR, £)",
+    "Notes": "Contains more than 30 words",
+    "Memes": "Contains less than 5 words",
+    "Uncategorized": "Default category for unmatched screenshots"
+  },
+  "usage": {
+    "install": "pip install -r requirements.txt",
+    "run": "python screenshot_classifier.py"
+  }
+}
