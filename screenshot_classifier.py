@@ -5,6 +5,12 @@ from pathlib import Path
 import pytesseract
 from PIL import Image
 
+# Windows: Set tesseract path if not in PATH
+if os.name == 'nt':  # Windows
+    tesseract_path = r'C:\Program Files\Tesseract-OCR\tesseract.exe'
+    if os.path.exists(tesseract_path):
+        pytesseract.pytesseract.tesseract_cmd = tesseract_path
+
 class ScreenshotClassifier:
     def __init__(self, screenshots_dir="Screenshots"):
         self.screenshots_dir = Path(screenshots_dir)
@@ -19,7 +25,9 @@ class ScreenshotClassifier:
         """Extract text from image using pytesseract"""
         try:
             img = Image.open(image_path)
-            text = pytesseract.image_to_string(img)
+            # Use more aggressive OCR config for better text extraction
+            custom_config = r'--oem 3 --psm 6'
+            text = pytesseract.image_to_string(img, config=custom_config)
             return text
         except Exception as e:
             print(f"Error extracting text from {image_path}: {e}")
@@ -27,10 +35,12 @@ class ScreenshotClassifier:
     
     def is_chat(self, text):
         """Check if screenshot is a chat"""
+        text_lower = text.lower()
         time_pattern = r'\d{1,2}:\d{2}\s*(AM|PM|am|pm)'
         has_time = bool(re.search(time_pattern, text))
-        chat_indicators = ['message', 'chat', 'replied', 'typing']
-        has_chat_words = any(word in text.lower() for word in chat_indicators)
+        chat_indicators = ['message', 'chat', 'replied', 'typing', 'whatsapp', 
+                          'telegram', 'messenger', 'online', 'last seen']
+        has_chat_words = any(word in text_lower for word in chat_indicators)
         return has_time or has_chat_words
     
     def is_receipt(self, text):
@@ -41,18 +51,30 @@ class ScreenshotClassifier:
     def is_note(self, text):
         """Check if screenshot is a note (long text)"""
         word_count = len(text.split())
-        return word_count > 30
+        # Also check for note-related keywords
+        note_keywords = ['note', 'todo', 'reminder', 'document', 'paragraph']
+        has_note_words = any(word in text.lower() for word in note_keywords)
+        return word_count > 30 or (word_count > 15 and has_note_words)
     
     def is_meme(self, text):
         """Check if screenshot is a meme (very little text)"""
-        word_count = len(text.split())
-        return word_count < 5
+        # Clean text and count meaningful words
+        cleaned_text = text.strip()
+        words = [w for w in cleaned_text.split() if len(w) > 1]
+        # Only classify as meme if there's 1-4 meaningful words
+        return 1 <= len(words) <= 4
     
     def classify_screenshot(self, text):
         """Classify screenshot based on extracted text"""
-        for category, check_func in self.categories.items():
-            if check_func(text):
-                return category
+        # Check specific categories first (order matters)
+        if self.is_receipt(text):
+            return "Receipts"
+        if self.is_chat(text):
+            return "Chats"
+        if self.is_note(text):
+            return "Notes"
+        if self.is_meme(text):
+            return "Memes"
         return "Uncategorized"
     
     def create_category_folders(self):
@@ -94,6 +116,13 @@ class ScreenshotClassifier:
             text = self.extract_text(screenshot)
             word_count = len(text.split())
             print(f"  Extracted {word_count} words")
+            
+            # Debug: show first 150 chars of extracted text
+            preview = text.replace('\n', ' ').strip()[:150]
+            if preview:
+                print(f"  Preview: '{preview}...'")
+            else:
+                print(f"  Preview: [NO TEXT EXTRACTED]")
             
             # Classify
             category = self.classify_screenshot(text)
